@@ -2,14 +2,17 @@ FROM node:20-slim
 
 WORKDIR /app
 
-# 安装 git 并克隆 NapCat 官方仓库
+# 安装 curl 和 unzip，下载 NapCatQQ 最新 release
 RUN apt-get update && \
-    apt-get install -y git && \
-    git clone --depth 1 https://github.com/NapNeko/NapCat.git /app/napcat && \
-    cd /app/napcat && \
+    apt-get install -y curl unzip && \
+    curl -L -o napcat.zip \
+      https://github.com/NapNeko/NapCatQQ/archive/refs/tags/v4.18.6.zip && \
+    unzip napcat.zip && \
+    mv NapCatQQ-* napcat && \
+    cd napcat && \
     npm install --production && \
-    apt-get remove -y git && apt-get autoremove -y && \
-    rm -rf /var/lib/apt/lists/*
+    apt-get remove -y curl unzip && apt-get autoremove -y && \
+    rm -rf /var/lib/apt/lists/* /app/napcat.zip
 
 # 创建配置目录并配置 WebSocket
 RUN mkdir -p /app/napcat/config && \
