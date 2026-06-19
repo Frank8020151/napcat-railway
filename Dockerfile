@@ -2,7 +2,7 @@ FROM node:20-slim
 
 WORKDIR /app
 
-# ✅ 恢复从 GitHub Release 下载 NapCat.Shell.zip
+# ✅ 从 GitHub Release 下载 NapCat.Shell.zip
 RUN apt-get update && \
     apt-get install -y curl unzip && \
     curl -L -o napcat.zip \
@@ -12,7 +12,7 @@ RUN apt-get update && \
     apt-get remove -y curl unzip && apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
 
-# 创建配置目录
+# 创建配置
 RUN mkdir -p /app/napcat/config && \
     echo '{"websocket":{"enable":true,"host":"0.0.0.0","port":3000}}' > /app/napcat/config/onebot.json
 
@@ -20,5 +20,14 @@ WORKDIR /app/napcat
 
 EXPOSE 3000 6099
 
-# 🔍 诊断模式：列出运行时文件结构，然后保持容器运行 5 分钟
-CMD bash -c 'echo "=== 运行时文件结构 ===" && find /app/napcat -maxdepth 3 -type f | head -80 && echo "=== 根目录文件 ===" && ls -la /app/napcat/*.js /app/napcat/*.mjs /app/napcat/*.cjs /app/napcat/*.json 2>/dev/null || echo "(无匹配)" && echo "=== 保持容器运行10分钟 ===" && sleep 600'
+# 🔍 诊断：打印 package.json 和 loadNapCat.js
+CMD bash -c '
+echo "=== package.json ===" && 
+cat /app/napcat/package.json &&
+echo "" &&
+echo "=== loadNapCat.js ===" && 
+cat /app/napcat/loadNapCat.js &&
+echo "" &&
+echo "=== qqnt.json ===" && 
+cat /app/napcat/qqnt.json
+'
