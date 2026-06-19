@@ -1,7 +1,10 @@
 FROM mlikiowa/napcat-docker:latest
 
-# 安装 socat（端口转发用）+ python3（健康检查用）
-RUN apt-get update && apt-get install -y socat python3 && rm -rf /var/lib/apt/lists/*
+# 先修复基础镜像中损坏的依赖
+RUN apt-get update && \
+    apt-get install -y xdg-utils libwrap0 && \
+    apt-get install -y socat && \
+    rm -rf /var/lib/apt/lists/*
 
 ENV NAPCAT_UID=0
 ENV NAPCAT_GID=0
