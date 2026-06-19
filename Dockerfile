@@ -1,16 +1,22 @@
 FROM node:20-slim
 
-# 安装 Napcat 独立版（也叫 Napcat.Shell / Napcat.Headless）
-RUN npm install -g napcat.qq@latest
+WORKDIR /app
 
-# 创建配置目录
-RUN mkdir -p /root/.config/QQ/NapCat/config
+# 安装 git 并克隆 NapCat 官方仓库
+RUN apt-get update && \
+    apt-get install -y git && \
+    git clone --depth 1 https://github.com/NapNeko/NapCat.git /app/napcat && \
+    cd /app/napcat && \
+    npm install --production && \
+    apt-get remove -y git && apt-get autoremove -y && \
+    rm -rf /var/lib/apt/lists/*
 
-# 配置 WebSocket（监听所有网卡，端口 3000）
-RUN echo '{"websocket":{"enable":true,"host":"0.0.0.0","port":3000}}' > /root/.config/QQ/NapCat/config/onebot.json
+# 创建配置目录并配置 WebSocket
+RUN mkdir -p /app/napcat/config && \
+    echo '{"websocket":{"enable":true,"host":"0.0.0.0","port":3000}}' > /app/napcat/config/onebot.json
 
-# 暴露端口
+WORKDIR /app/napcat
+
 EXPOSE 3000 6099
 
-# 启动 Napcat
-CMD ["npx", "napcat.qq"]
+CMD ["node", "src/index.js"]
