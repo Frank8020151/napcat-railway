@@ -4,32 +4,31 @@ set -e
 echo "🚀 Railway NapCat 启动中..."
 echo "📡 PORT = $PORT"
 
-# ========== 1️⃣ 健康检查服务器（立即监听 $PORT）==========
+# ========== 0️⃣ 换号处理 ==========
+if [ "${SWITCH_ACCOUNT}" = "true" ]; then
+    echo "🔄 清除 QQ 登录缓存，准备换号..."
+    rm -rf /app/.config/QQ 2>/dev/null || true
+    rm -rf /app/.local/share/QQ 2>/dev/null || true
+    rm -rf /app/napcat/config/qq.json 2>/dev/null || true
+    echo "✅ 已清除，请移除 SWITCH_ACCOUNT 环境变量后重新部署"
+fi
+
+# ========== 1️⃣ 健康检查 ==========
 python3 -c "
-import http.server, os, sys, json
-
+import http.server, os, sys
 PORT = int(os.environ.get('PORT', 8080))
-
-class HealthHandler(http.server.BaseHTTPRequestHandler):
+class H(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
-        self.send_header('Content-Type', 'text/plain')
+        self.send_header('Content-Type','text/plain')
         self.end_headers()
         self.wfile.write(b'OK')
-    def log_message(self, *args):
-        pass
-
-try:
-    server = http.server.HTTPServer(('0.0.0.0', PORT), HealthHandler)
-    print(f'✅ 健康检查: 监听 :{PORT} → 200 OK')
-    server.serve_forever()
-except Exception as e:
-    print(f'❌ 健康检查失败: {e}')
-    sys.exit(1)
+    def log_message(self,*a): pass
+http.server.HTTPServer(('0.0.0.0',PORT),H).serve_forever()
 " &
 sleep 0.5
 
-# ========== 2️⃣ 确保 NapCat 已安装 ==========
+# ========== 2️⃣ 安装 NapCat ==========
 NAPCAT_DIR="/app/napcat"
 NAPCAT_MJS="$NAPCAT_DIR/napcat.mjs"
 
@@ -37,47 +36,61 @@ if [ ! -f "$NAPCAT_MJS" ]; then
     echo "⏳ NapCat 未安装，正在下载..."
     mkdir -p "$NAPCAT_DIR"
     
-    # 获取最新 NapCat 版本号
     LATEST_VERSION=$(curl -s https://api.github.com/repos/NapNeko/NapCatQQ/releases/latest | grep '"tag_name"' | cut -d '"' -f 4)
     echo "📦 最新版本: $LATEST_VERSION"
     
-    # 下载 NapCat
     cd /tmp
     curl -L -o napcat.zip "https://github.com/NapNeko/NapCatQQ/releases/download/${LATEST_VERSION}/NapCat.Shell.zip"
-    
-    # 解压到 /app/napcat
     unzip -o napcat.zip -d "$NAPCAT_DIR"
     rm napcat.zip
     
-    # 确保 napcat.mjs 存在
     if [ -f "$NAPCAT_DIR/NapCat.mjs" ] && [ ! -f "$NAPCAT_MJS" ]; then
         cp "$NAPCAT_DIR/NapCat.mjs" "$NAPCAT_MJS"
     fi
     
-    # 修补 loadNapCat.js（确保它存在并指向正确路径）
     LOADER="/opt/QQ/resources/app/loadNapCat.js"
     if [ ! -f "$LOADER" ]; then
         echo 'import { NapCat } from "/app/napcat/napcat.mjs";' > "$LOADER"
     fi
-    
     echo "✅ NapCat $LATEST_VERSION 安装完成"
-    
-    # 列出 napcat 目录内容以便调试
-    ls -la "$NAPCAT_DIR/"
 fi
 
-# ========== 3️⃣ Xvfb（虚拟显示器）==========
+# ========== 3️⃣ OneBot 配置（连 AstrBot）==========
+ASTRBOT_HOST="${ASTRBOT_HOST:-astrbot}"
+ASTRBOT_PORT="${ASTRBOT_PORT:-6199}"
+ASTRBOT_WS_URL="ws://${ASTRBOT_HOST}.railway.internal:${ASTRBOT_PORT}/ws"
+echo "🔗 目标 AstrBot: $ASTRBOT_WS_URL"
+
+ONEBOT_CONFIG_DIR="$NAPCAT_DIR/config"
+mkdir -p "$ONEBOT_CONFIG_DIR"
+
+cat > "$ONEBOT_CONFIG_DIR/onebot11.json" << EOF
+{
+  "websocketClients": [
+    {
+      "enable": true,
+      "name": "astrbot",
+      "url": "$ASTRBOT_WS_URL",
+      "heartInterval": 5000,
+      "reconnectInterval": 5000
+    }
+  ],
+  "httpServers": [],
+  "wsServers": []
+}
+EOF
+echo "✅ OneBot 配置已写入: $ASTRBOT_WS_URL"
+
+# ========== 4️⃣ Xvfb + 启动 QQ ==========
 rm -f /tmp/.X99-lock 2>/dev/null || true
 export DISPLAY=:99
 Xvfb :99 -screen 0 1024x768x16 &
 sleep 1
-echo "✅ Xvfb 虚拟显示器已启动"
+echo "✅ Xvfb 已启动"
 
-# ========== 4️⃣ 启动 QQ + NapCat ==========
 cd /app
 echo "⏳ 启动 QQ + NapCat..."
 xvfb-run -a qq --no-sandbox &
 echo "✅ QQ + NapCat 已后台启动"
 
-# ========== 5️⃣ 保持运行 ==========
 wait
