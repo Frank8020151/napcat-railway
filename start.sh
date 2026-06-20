@@ -13,7 +13,7 @@ if [ "${SWITCH_ACCOUNT}" = "true" ]; then
     echo "✅ 已清除，请移除 SWITCH_ACCOUNT 环境变量后重新部署"
 fi
 
-# ========== 1️⃣ 健康检查 ==========
+# ========== 1️⃣ 健康检查服务器 ==========
 python3 -c "
 import http.server, os, sys
 PORT = int(os.environ.get('PORT', 8080))
@@ -28,7 +28,7 @@ http.server.HTTPServer(('0.0.0.0',PORT),H).serve_forever()
 " &
 sleep 0.5
 
-# ========== 2️⃣ 安装 NapCat ==========
+# ========== 2️⃣ 用 Python 下载 NapCat（不需要 curl）==========
 NAPCAT_DIR="/app/napcat"
 NAPCAT_MJS="$NAPCAT_DIR/napcat.mjs"
 
@@ -36,26 +36,46 @@ if [ ! -f "$NAPCAT_MJS" ]; then
     echo "⏳ NapCat 未安装，正在下载..."
     mkdir -p "$NAPCAT_DIR"
     
-    LATEST_VERSION=$(curl -s https://api.github.com/repos/NapNeko/NapCatQQ/releases/latest | grep '"tag_name"' | cut -d '"' -f 4)
-    echo "📦 最新版本: $LATEST_VERSION"
+    python3 -c "
+import urllib.request, json, os, zipfile, io
+
+# 获取最新版本
+print('📦 获取最新 NapCat 版本...')
+resp = urllib.request.urlopen('https://api.github.com/repos/NapNeko/NapCatQQ/releases/latest')
+data = json.loads(resp.read())
+version = data['tag_name']
+print(f'📦 最新版本: {version}')
+
+# 下载
+url = f'https://github.com/NapNeko/NapCatQQ/releases/download/{version}/NapCat.Shell.zip'
+print(f'⬇️ 下载: {url}')
+resp = urllib.request.urlopen(url)
+z = zipfile.ZipFile(io.BytesIO(resp.read()))
+z.extractall('/app/napcat')
+print('✅ 解压完成')
+
+# 如果 napcat.mjs 不存在，从 NapCat.mjs 复制
+import glob
+files = os.listdir('/app/napcat')
+print(f'📂 文件: {files}')
+" 
     
-    cd /tmp
-    curl -L -o napcat.zip "https://github.com/NapNeko/NapCatQQ/releases/download/${LATEST_VERSION}/NapCat.Shell.zip"
-    unzip -o napcat.zip -d "$NAPCAT_DIR"
-    rm napcat.zip
-    
+    # 确保 napcat.mjs 存在
     if [ -f "$NAPCAT_DIR/NapCat.mjs" ] && [ ! -f "$NAPCAT_MJS" ]; then
         cp "$NAPCAT_DIR/NapCat.mjs" "$NAPCAT_MJS"
     fi
     
+    # 修补 loadNapCat.js
     LOADER="/opt/QQ/resources/app/loadNapCat.js"
     if [ ! -f "$LOADER" ]; then
         echo 'import { NapCat } from "/app/napcat/napcat.mjs";' > "$LOADER"
     fi
-    echo "✅ NapCat $LATEST_VERSION 安装完成"
+    
+    echo "✅ NapCat 安装完成"
+    ls -la "$NAPCAT_DIR/"
 fi
 
-# ========== 3️⃣ OneBot 配置（连 AstrBot）==========
+# ========== 3️⃣ 配置 NapCat OneBot（连 AstrBot）==========
 ASTRBOT_HOST="${ASTRBOT_HOST:-astrbot}"
 ASTRBOT_PORT="${ASTRBOT_PORT:-6199}"
 ASTRBOT_WS_URL="ws://${ASTRBOT_HOST}.railway.internal:${ASTRBOT_PORT}/ws"
