@@ -1,8 +1,8 @@
 FROM mlikiowa/napcat-docker:latest
 
-# 安装依赖
+# 只需要安装这几个，不需要 curl 了！
 RUN apt-get update && \
-    apt-get install -y xdg-utils libwrap0 unzip curl && \
+    apt-get install -y xdg-utils libwrap0 unzip && \
     rm -rf /var/lib/apt/lists/* && \
     apt-get clean
 
