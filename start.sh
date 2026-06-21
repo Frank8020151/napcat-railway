@@ -1,6 +1,7 @@
 #!/bin/bash
 set -e
 
+
 echo "🚀 Railway NapCat 启动中..."
 echo "📡 PORT = $PORT"
 
