@@ -79,8 +79,7 @@ fi
 # ========== 3️⃣ 配置 NapCat OneBot（连 AstrBot）==========
 ASTRBOT_HOST="${ASTRBOT_HOST:-astrbot}"
 ASTRBOT_PORT="${ASTRBOT_PORT:-6199}"
-# 连休眠代理（6199），不再直连 AstrBot（6185）
-ASTRBOT_WS_URL="ws://${ASTRBOT_HOST}.railway.internal:6199/ws"
+ASTRBOT_WS_URL="ws://${ASTRBOT_HOST}.railway.internal:${ASTRBOT_PORT}/ws"
 echo "🔗 目标 AstrBot: $ASTRBOT_WS_URL"
 
 ONEBOT_CONFIG_DIR="$NAPCAT_DIR/config"
